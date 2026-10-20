@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Double Pendulum Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eaf0f4; --panel:#f8fbfd; --ink:#14213d; --muted:#5a6b82; --line:#d3dde6; --grid:#dde6ee;
+  --a:#c2185b; --b:#00897b; --kin:#e07a00; --pot:#5b4bc4; --btn:#14213d; --btnink:#f8fbfd;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1824; --panel:#122335; --ink:#e4ecf3; --muted:#8fa3b8; --line:#203750; --grid:#172b40;
+    --a:#ff6fa3; --b:#3ddcc4; --kin:#ffb14a; --pot:#a99cff; --btn:#e4ecf3; --btnink:#0c1824;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1824; --panel:#122335; --ink:#e4ecf3; --muted:#8fa3b8; --line:#203750; --grid:#172b40;
+  --a:#ff6fa3; --b:#3ddcc4; --kin:#ffb14a; --pot:#a99cff; --btn:#e4ecf3; --btnink:#0c1824;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.45}
+.wrap{max-width:1300px;margin:0 auto;padding:22px clamp(12px,3vw,28px) 40px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;margin-bottom:16px}
+h1{font-family:"Newsreader",Georgia,serif;font-weight:600;font-size:clamp(28px,4vw,40px);margin:0;letter-spacing:-.01em}
+header p{margin:0;color:var(--muted);max-width:62ch}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+@media (max-width:920px){.main{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.stage{position:relative;aspect-ratio:4/3;overflow:hidden;border-radius:10px 10px 0 0;touch-action:none;cursor:grab}
+.stage.dragging{cursor:grabbing}
+@media (max-width:600px){.stage{aspect-ratio:1/1}}
+canvas{display:block;width:100%;height:100%}
+.hint{position:absolute;left:12px;bottom:10px;font-size:12.5px;color:var(--muted);pointer-events:none}
+.legend-ab{position:absolute;right:12px;top:10px;font-size:12.5px;display:none;gap:12px;color:var(--muted)}
+.legend-ab.on{display:flex}
+.sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.blown{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:20px;text-align:center;background:color-mix(in srgb,var(--panel) 88%,transparent)}
+.blown.on{display:flex}
+.blown div{max-width:40ch}
+.blown strong{display:block;font-size:17px;margin-bottom:6px}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));border-top:1px solid var(--line)}
+.readout div{padding:9px 12px;border-right:1px solid var(--line)}
+.readout div:last-child{border-right:0}
+.readout span{display:block;font-size:12px;color:var(--muted)}
+.readout b{font-weight:500;font-variant-numeric:tabular-nums;font-size:15px;white-space:nowrap}
+.side{padding:4px 16px 14px}
+.side section{padding:12px 0;border-bottom:1px solid var(--line)}
+.side section:last-child{border-bottom:0}
+.side h2{font-size:14px;font-weight:600;margin:0 0 9px}
+.row{margin:8px 0}
+.row label{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:2px}
+.row label output{font-variant-numeric:tabular-nums;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--a);margin:2px 0}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+button,select,input[type=number]{font:inherit;font-size:13.5px;color:var(--ink)}
+button{border:1px solid var(--line);background:transparent;border-radius:7px;padding:7px 11px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--btn);color:var(--btnink);border-color:var(--btn);min-width:84px}
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.presets button{text-align:left;padding:7px 9px;line-height:1.25}
+.presets small{display:block;color:var(--muted);font-size:11.5px}
+select,input[type=number]{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 7px}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pair .row label{display:block}
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;margin:8px 0;cursor:pointer}
+.check input{accent-color:var(--a);width:16px;height:16px}
+.delta{display:flex;align-items:center;gap:8px;font-size:13.5px;margin-left:24px}
+.delta input{width:110px}
+:focus-visible{outline:2px solid var(--a);outline-offset:2px}
+.plots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
+@media (max-width:920px){.plots{grid-template-columns:1fr}}
+.plot{padding:12px 14px 12px}
+.plot h3{font-size:14px;font-weight:600;margin:0}
+.plot .sub{font-size:12.5px;color:var(--muted);margin:2px 0 8px;min-height:2.6em}
+.plot .cv{height:210px}
+.plot .keys{display:flex;gap:12px;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
+.plot .hd{display:flex;justify-content:space-between;align-items:center;gap:8px}
+footer{margin-top:18px;color:var(--muted);font-size:13px;max-width:80ch}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Double pendulum</h1>
+    <p>Two coupled nonlinear equations of motion, integrated live with fourth-order Runge–Kutta. Tiny changes in the start, very different futures.</p>
+  </header>
+
+  <div class="main">
+    <div class="panel">
+      <div class="stage" id="stage">
+        <canvas id="cvStage" aria-label="Animated double pendulum"></canvas>
+        <div class="legend-ab" id="legendAB"><span><i class="sw" style="background:var(--a)"></i>Pendulum A</span><span><i class="sw" style="background:var(--b)"></i>Pendulum B (offset)</span></div>
+        <div class="hint">Drag either bob to set a new starting position</div>
+        <div class="blown" id="blown"><div><strong>The simulation became unstable</strong>The numbers grew without limit, which happens when the time step is too large for the integrator. Pick a smaller Δt or switch to RK4, then press Reset.</div></div>
+      </div>
+      <div class="readout">
+        <div><span>Time</span><b id="rT">0.00 s</b></div>
+        <div><span>θ₁</span><b id="rT1">–</b></div>
+        <div><span>θ₂</span><b id="rT2">–</b></div>
+        <div><span>ω₁</span><b id="rW1">–</b></div>
+        <div><span>ω₂</span><b id="rW2">–</b></div>
+        <div><span>Energy E</span><b id="rE">–</b></div>
+        <div><span>Energy drift</span><b id="rDrift">–</b></div>
+      </div>
+    </div>
+
+    <aside class="panel side">
+      <section>
+        <div class="btns">
+          <button class="primary" id="btnPlay">Pause</button>
+          <button id="btnReset">Reset</button>
+        </div>
+      </section>
+      <section>
+        <h2>Presets</h2>
+        <div class="presets">
+          <button data-p="gentle">Gentle<small>30°, 30°</small></button>
+          <button data-p="wild">Wild<small>120°, 120°</small></button>
+          <button data-p="chaos">Chaos test<small>120° vs 120.01°</small></button>
+          <button data-p="upright">Nearly upright<small>180°, 179.9°</small></button>
+          <button data-p="mode1">Normal mode 1<small>Swing together</small></button>
+          <button data-p="mode2">Normal mode 2<small>Swing opposite</small></button>
+        </div>
+      </section>
+      <section>
+        <h2>Starting angles</h2>
+        <div class="row"><label for="t1">θ₁ from vertical <output id="t1o"></output></label><input type="range" id="t1" min="-180" max="180" step="0.01"></div>
+        <div class="row"><label for="t2">θ₂ from vertical <output id="t2o"></output></label><input type="range" id="t2" min="-180" max="180" step="0.01"></div>
+      </section>
+      <section>
+        <h2>Physical parameters</h2>
+        <div class="pair">
+          <div class="row"><label for="m1">m₁ <output id="m1o"></output></label><input type="range" id="m1" min="0.1" max="5" step="0.1"></div>
+          <div class="row"><label for="m2">m₂ <output id="m2o"></output></label><input type="range" id="m2" min="0.1" max="5" step="0.1"></div>
+          <div class="row"><label for="L1">L₁ <output id="L1o"></output></label><input type="range" id="L1" min="0.2" max="2" step="0.05"></div>
+          <div class="row"><label for="L2">L₂ <output id="L2o"></output></label><input type="range" id="L2" min="0.2" max="2" step="0.05"></div>
+        </div>
+        <div class="row"><label for="g">Gravity g <output id="go"></output></label><input type="range" id="g" min="1" max="25" step="0.01"></div>
+        <div class="row"><label for="b">Damping <output id="bo"></output></label><input type="range" id="b" min="0" max="1" step="0.01"></div>
+      </section>
+      <section>
+        <h2>Numerical method</h2>
+        <div class="pair">
+          <div class="row"><label for="method">Integrator</label>
+            <select id="method"><option value="rk4">RK4</option><option value="euler">Euler</option></select></div>
+          <div class="row"><label for="dt">Time step Δt</label>
+            <select id="dt"><option value="0.0005">0.0005 s</option><option value="0.001" selected>0.001 s</option><option value="0.005">0.005 s</option><option value="0.01">0.01 s</option><option value="0.02">0.02 s</option><option value="0.05">0.05 s</option></select></div>
+        </div>
+      </section>
+      <section>
+        <h2>Chaos test</h2>
+        <label class="check"><input type="checkbox" id="chaos"> Compare two pendulums</label>
+        <div class="delta"><label for="delta">B starts θ₁ +</label><input type="number" id="delta" value="0.01" step="0.001" min="0.000001"> °</div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="plots">
+    <div class="panel plot">
+      <h3>Energy over time</h3>
+      <p class="sub" id="energySub">Total energy should stay flat for the ideal, undamped system.</p>
+      <div class="cv"><canvas id="cvEnergy" aria-label="Energy graph"></canvas></div>
+      <div class="keys"><span><i class="sw" style="background:var(--ink)"></i>Total E</span><span><i class="sw" style="background:var(--kin)"></i>Kinetic T</span><span><i class="sw" style="background:var(--pot)"></i>Potential V</span></div>
+    </div>
+    <div class="panel plot">
+      <div class="hd"><h3>Phase space</h3>
+        <select id="phaseOf" aria-label="Phase space variable"><option value="1">θ₁ vs ω₁</option><option value="2">θ₂ vs ω₂</option></select></div>
+      <p class="sub">Angle against angular velocity. Closed loops mean regular motion; a tangled cloud means chaos.</p>
+      <div class="cv"><canvas id="cvPhase" aria-label="Phase space plot"></canvas></div>
+    </div>
+    <div class="panel plot">
+      <h3>Divergence of A and B</h3>
+      <p class="sub">Separation on a log scale. A rising straight line means exponential growth, the signature of a positive Lyapunov exponent.</p>
+      <div class="cv"><canvas id="cvDiv" aria-label="Divergence graph"></canvas></div>
+    </div>
+  </div>
+
+  <footer>Model assumptions: rigid massless rods, point masses, frictionless joints, no air resistance, constant g. Potential energy is measured from the lowest configuration, so V = 0 when both bobs hang straight down. Damping adds a torque proportional to each angular velocity.</footer>
+</div>
+
+<script>
+(function(){
+const $ = id => document.getElementById(id);
+const RAD = Math.PI/180;
+const P = {m1:1, m2:1, L1:1, L2:1, g:9.81, b:0};
+const S = {dt:0.001, method:'rk4', speed:1, trails:true, chaos:false, delta:0.01, running:true, phaseOf:1};
+const IC = {t1:120, t2:120};
+
+let A, B, t, E0, acc = 0, blown = false;
+let trailA = [], trailB = [], phaseA = [], phaseB = [], eHist = [], dHist = [];
+const TRAIL_MAX = 700, PHASE_MAX = 4000;
+
+// ---------- physics ----------
+function deriv(s){
+  const t1=s[0], t2=s[1], w1=s[2], w2=s[3];
+  const {m1,m2,L1,L2,g,b} = P;
+  const d = t1 - t2, sd = Math.sin(d), cd = Math.cos(d);
+  const den = 2*m1 + m2 - m2*Math.cos(2*d);
+  const a1 = (-g*(2*m1+m2)*Math.sin(t1) - m2*g*Math.sin(t1-2*t2)
+             - 2*sd*m2*(w2*w2*L2 + w1*w1*L1*cd)) / (L1*den) - b*w1;
+  const a2 = (2*sd*(w1*w1*L1*(m1+m2) + g*(m1+m2)*Math.cos(t1) + w2*w2*L2*m2*cd)) / (L2*den) - b*w2;
+  return [w1, w2, a1, a2];
+}
+function rk4(s,h){
+  const k1 = deriv(s);
+  const s2 = [0,0,0,0], s3 = [0,0,0,0], s4 = [0,0,0,0];
+  for(let i=0;i<4;i++) s2[i] = s[i] + h/2*k1[i];
+  const k2 = deriv(s2);
+  for(let i=0;i<4;i++) s3[i] = s[i] + h/2*k2[i];
+  const k3 = deriv(s3);
+  for(let i=0;i<4;i++) s4[i] = s[i] + h*k3[i];
+  const k4 = deriv(s4);
+  const o = [0,0,0,0];
+  for(let i=0;i<4;i++) o[i] = s[i] + h/6*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]);
+  return o;
+}
+function euler(s,h){
+  const k = deriv(s);
+  return [s[0]+h*k[0], s[1]+h*k[1], s[2]+h*k[2], s[3]+h*k[3]];
+}
+function energy(s){
+  const {m1,m2,L1,L2,g} = P;
+  const t1=s[0], t2=s[1], w1=s[2], w2=s[3];
+  const T = 0.5*(m1+m2)*L1*L1*w1*w1 + 0.5*m2*L2*L2*w2*w2 + m2*L1*L2*w1*w2*Math.cos(t1-t2);
+  const V = -(m1+m2)*g*L1*Math.cos(t1) - m2*g*L2*Math.cos(t2) + (m1+m2)*g*L1 + m2*g*L2;
+  return {T, V, E:T+V};
+}
+function positions(s){
+  const x1 = P.L1*Math.sin(s[0]), y1 = -P.L1*Math.cos(s[0]);
+  return [x1, y1, x1 + P.L2*Math.sin(s[1]), y1 - P.L2*Math.cos(s[1])];
+}
+const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
+
+// ---------- state management ----------
+function clearBuffers(){ trailA=[]; trailB=[]; phaseA=[]; phaseB=[]; eHist=[]; dHist=[]; }
+function reset(){
+  A = [IC.t1*RAD, IC.t2*RAD, 0, 0];
+  B = [(IC.t1 + S.delta)*RAD, IC.t2*RAD, 0, 0];
+  t = 0; acc = 0; blown = false;
+  $('blown').classList.remove('on');
+  E0 = energy(A).E;
+  clearBuffers();
+  record();
+  updateReadout();
+}
+function rebaseEnergy(){ E0 = energy(A).E; eHist = []; }
+
+function record(){
+  const pa = positions(A);
+  trailA.push([pa[2], pa[3]]); if(trailA.length > TRAIL_MAX) trailA.shift();
+  const k = S.phaseOf === 1 ? 0 : 1;
+  phaseA.push([wrap(A[k]), A[k+2]]); if(phaseA.length > PHASE_MAX) phaseA.shift();
+  const e = energy(A);
+  eHist.push([t, e.E, e.T, e.V]); if(eHist.length > 2400) eHist.shift();
+  if(S.chaos){
+    const pb = positions(B);
+    trailB.push([pb[2], pb[3]]); if(trailB.length > TRAIL_MAX) trailB.shift();
+    phaseB.push([wrap(B[k]), B[k+2]]); if(phaseB.length > PHASE_MAX) phaseB.shift();
+    const sep = Math.hypot(wrap(A[0]-B[0]), wrap(A[1]-B[1]), 0.3*(A[2]-B[2]), 0.3*(A[3]-B[3]));
+    dHist.push([t, Math.log10(Math.max(sep, 1e-12))]); if(dHist.length > 3000) dHist.shift();
+  }
+}
+
+// ---------- rendering helpers ----------
+let C = {};
+function readColors(){
+  const cs = getComputedStyle(document.documentElement);
+  ['bg','panel','ink','muted','line','grid','a','b','kin','pot'].forEach(k => C[k] = cs.getPropertyValue('--'+k).trim());
+}
+readColors();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', readColors);
+
+const canv = {};
+function setupCanvas(id){
+  const cv = $(id), ctx = cv.getContext('2d');
+  const o = {cv, ctx, w:0, h:0};
+  const fit = () => {
+    const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    o.w = r.width; o.h = r.height;
+    cv.width = Math.max(1, Math.round(r.width*dpr)); cv.height = Math.max(1, Math.round(r.height*dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  };
+  new ResizeObserver(fit).observe(cv); fit();
+  canv[id] = o; return o;
+}
+['cvStage','cvEnergy','cvPhase','cvDiv'].forEach(setupCanvas);
+
+const VIEW = {ox:0, oy:0, sc:1, r1:10, r2:10};
+function drawStage(){
+  const {ctx, w, h} = canv.cvStage;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = C.panel; ctx.fillRect(0,0,w,h);
+  const ox = w/2, oy = h*0.49, sc = Math.min(w,h)*0.45/(P.L1+P.L2);
+  VIEW.ox = ox; VIEW.oy = oy; VIEW.sc = sc;
+
+  const step = 0.1*sc;
+  if(step > 5){
+    ctx.lineWidth = 1;
+    const nx = Math.ceil(w/2/step)+1, ny = Math.ceil(h/step)+1;
+    for(let i=-nx;i<=nx;i++){
+      const x = Math.round(ox + i*step) + 0.5;
+      ctx.strokeStyle = C.grid; ctx.globalAlpha = i%5===0 ? 1 : 0.5;
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke();
+    }
+    for(let j=-ny;j<=ny;j++){
+      const y = Math.round(oy + j*step) + 0.5;
+      ctx.globalAlpha = j%5===0 ? 1 : 0.5;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  ctx.setLineDash([4,6]); ctx.strokeStyle = C.line; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(ox, oy, (P.L1+P.L2)*sc, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+
+  if(S.trails){
+    if(S.chaos) drawTrail(ctx, trailB, C.b);
+    drawTrail(ctx, trailA, C.a);
+  }
+  const k = Math.max(0.7, Math.min(1.4, Math.min(w,h)/520));
+  VIEW.r1 = (5 + 7*Math.cbrt(P.m1))*k; VIEW.r2 = (5 + 7*Math.cbrt(P.m2))*k;
+  if(S.chaos) drawPend(ctx, B, C.b, 0.85);
+  drawPend(ctx, A, C.a, 1);
+
+  ctx.fillStyle = C.ink;
+  ctx.fillRect(ox-14, oy-3, 28, 3);
+  ctx.beginPath(); ctx.arc(ox, oy, 4.5, 0, Math.PI*2); ctx.fill();
+}
+function drawTrail(ctx, pts, col){
+  const n = pts.length; if(n < 2) return;
+  const {ox, oy, sc} = VIEW;
+  ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const chunk = 12;
+  for(let s=1; s<n; s+=chunk){
+    ctx.globalAlpha = Math.pow(s/n, 1.6)*0.9;
+    ctx.beginPath();
+    ctx.moveTo(ox + pts[s-1][0]*sc, oy - pts[s-1][1]*sc);
+    const e = Math.min(n, s+chunk);
+    for(let i=s;i<e;i++) ctx.lineTo(ox + pts[i][0]*sc, oy - pts[i][1]*sc);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+function drawPend(ctx, s, col, alpha){
+  const {ox, oy, sc} = VIEW;
+  const p = positions(s);
+  const x1 = ox + p[0]*sc, y1 = oy - p[1]*sc, x2 = ox + p[2]*sc, y2 = oy - p[3]*sc;
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = C.ink; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(ox,oy); ctx.lineTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  for(const [x,y,r] of [[x1,y1,VIEW.r1],[x2,y2,VIEW.r2]]){
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = C.panel; ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function plotFrame(o, xmin, xmax, ymin, ymax, yTicks, yFmt, xLabel){
+  const {ctx, w, h} = o;
+  const L = 44, R = 8, T = 6, Bm = 22;
+  ctx.clearRect(0,0,w,h);
+  const X = x => L + (x - xmin)/(xmax - xmin)*(w - L - R);
+  const Y = y => T + (1 - (y - ymin)/(ymax - ymin))*(h - T - Bm);
+  ctx.font = '11px "Public Sans", system-ui, sans-serif';
+  ctx.fillStyle = C.muted; ctx.strokeStyle = C.grid; ctx.lineWidth = 1;
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for(const v of yTicks){
+    const y = Math.round(Y(v)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(w-R, y); ctx.stroke();
+    ctx.fillText(yFmt(v), L-6, y);
+  }
+  ctx.strokeStyle = C.line;
+  ctx.beginPath(); ctx.moveTo(L+0.5, T); ctx.lineTo(L+0.5, h-Bm+0.5); ctx.lineTo(w-R, h-Bm+0.5); ctx.stroke();
+  if(xLabel){ ctx.textAlign = 'center'; ctx.textBaseline = 'top'; xLabel.forEach(([v,s]) => ctx.fillText(s, X(v), h-Bm+5)); }
+  return {X, Y, L, R, T, Bm};
+}
+function niceTicks(min, max, n){
+  const span = max - min || 1, raw = span/n, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const st = [1,2,2.5,5,10].map(m => m*mag).find(s => s >= raw) || raw;
+  const out = []; for(let v = Math.ceil(min/st)*st; v <= max + 1e-9; v += st) out.push(+v.toFixed(10));
+  return out;
+}
+function timeTicks(a,b){ return niceTicks(a,b,4).map(v => [v, v.toFixed(0)+' s']); }
+function fmtNum(v){ const a = Math.abs(v); return a>=100 ? v.toFixed(0) : a>=10 ? v.toFixed(1) : a>=1 ? v.toFixed(1) : v.toFixed(2); }
+
+function drawEnergy(){
+  const o = canv.cvEnergy;
+  if(eHist.length < 2){ o.ctx.clearRect(0,0,o.w,o.h); return; }
+  const tEnd = eHist[eHist.length-1][0], win = 20;
+  const x0 = Math.max(0, tEnd - win), x1 = Math.max(win, tEnd);
+  let lo = Infinity, hi = -Infinity;
+  for(const r of eHist){ if(r[0] < x0) continue; for(let i=1;i<4;i++){ if(r[i]<lo) lo=r[i]; if(r[i]>hi) hi=r[i]; } }
+  if(!isFinite(lo)){ lo = 0; hi = 1; }
+  const pad = (hi - lo)*0.08 || 1; lo -= pad; hi += pad;
+  const f = plotFrame(o, x0, x1, lo, hi, niceTicks(lo, hi, 4), v => fmtNum(v)+' J', timeTicks(x0, x1));
+  const ctx = o.ctx;
+  const line = (idx, col, wdt) => {
+    ctx.strokeStyle = col; ctx.lineWidth = wdt; ctx.beginPath(); let st = false;
+    for(const r of eHist){ if(r[0] < x0) continue; const x=f.X(r[0]), y=f.Y(r[idx]); st ? ctx.lineTo(x,y) : (ctx.moveTo(x,y), st=true); }
+    ctx.stroke();
+  };
+  line(2, C.kin, 1.5); line(3, C.pot, 1.5); line(1, C.ink, 2.4);
+}
+
+function drawPhase(){
+  const o = canv.cvPhase;
+  let wmax = 2;
+  for(const p of phaseA) wmax = Math.max(wmax, Math.abs(p[1]));
+  if(S.chaos) for(const p of phaseB) wmax = Math.max(wmax, Math.abs(p[1]));
+  wmax *= 1.08;
+  const f = plotFrame(o, -Math.PI, Math.PI, -wmax, wmax, niceTicks(-wmax, wmax, 4), v => fmtNum(v),
+    [[-Math.PI,'−π'],[-Math.PI/2,'−π/2'],[0,'0'],[Math.PI/2,'π/2'],[Math.PI,'π']]);
+  const ctx = o.ctx;
+  ctx.save(); ctx.font = '11px "Public Sans", system-ui, sans-serif'; ctx.fillStyle = C.muted;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('ω (rad/s)', f.L+6, f.T+2); ctx.restore();
+  const draw = (pts, col) => {
+    const n = pts.length; if(n < 2) return;
+    ctx.strokeStyle = col; ctx.lineWidth = 1.2;
+    const chunk = 60;
+    for(let s=1; s<n; s+=chunk){
+      ctx.globalAlpha = 0.15 + 0.85*(s/n);
+      ctx.beginPath(); ctx.moveTo(f.X(pts[s-1][0]), f.Y(pts[s-1][1]));
+      const e = Math.min(n, s+chunk);
+      for(let i=s;i<e;i++){
+        const x = f.X(pts[i][0]), y = f.Y(pts[i][1]);
+        if(Math.abs(pts[i][0] - pts[i-1][0]) > Math.PI) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    const last = pts[n-1];
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(f.X(last[0]), f.Y(last[1]), 3.5, 0, Math.PI*2); ctx.fill();
+  };
+  if(S.chaos) draw(phaseB, C.b);
+  draw(phaseA, C.a);
+}
+
+function drawDiv(){
+  const o = canv.cvDiv, ctx = o.ctx;
+  if(!S.chaos){
+    ctx.clearRect(0,0,o.w,o.h);
+    ctx.fillStyle = C.muted; ctx.font = '13px "Public Sans", system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Turn on “Compare two pendulums”', o.w/2, o.h/2 - 9);
+    ctx.fillText('or pick the Chaos test preset.', o.w/2, o.h/2 + 9);
+    return;
+  }
+  const tEnd = dHist.length ? dHist[dHist.length-1][0] : 0, win = 30;
+  const x0 = Math.max(0, tEnd - win), x1 = Math.max(win, tEnd);
+  const ymin = -7, ymax = 1;
+  const sup = {'-':'⁻','0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷'};
+  const f = plotFrame(o, x0, x1, ymin, ymax, [-6,-4,-2,0], v => '10' + String(v).split('').map(c=>sup[c]).join(''), timeTicks(x0, x1));
+  ctx.strokeStyle = C.b; ctx.lineWidth = 2; ctx.beginPath(); let st = false;
+  for(const [tt, lv] of dHist){ if(tt < x0) continue; const x = f.X(tt), y = f.Y(Math.max(ymin, Math.min(ymax, lv))); st ? ctx.lineTo(x,y) : (ctx.moveTo(x,y), st=true); }
+  ctx.stroke();
+}
+
+function fmtDeg(r){ return (wrap(r)/RAD).toFixed(2) + '°'; }
+function updateReadout(){
+  const e = energy(A).E;
+  $('rT').textContent = t.toFixed(2) + ' s';
+  $('rT1').textContent = fmtDeg(A[0]);
+  $('rT2').textContent = fmtDeg(A[1]);
+  $('rW1').textContent = A[2].toFixed(2) + ' rad/s';
+  $('rW2').textContent = A[3].toFixed(2) + ' rad/s';
+  $('rE').textContent = e.toFixed(4) + ' J';
+  if(Math.abs(E0) < 1e-6){ $('rDrift').textContent = '–'; }
+  else { const d = (e - E0)/Math.abs(E0)*100; $('rDrift').textContent = (d>=0?'+':'') + (Math.abs(d) < 0.01 ? d.toExponential(1) : d.toFixed(3)) + ' %'; }
+  $('energySub').textContent = P.b > 0
+    ? 'Damping is on, so total energy drains away and the motion dies out.'
+    : S.method === 'euler'
+      ? 'Euler integration: watch total energy creep upward even though no energy is added.'
+      : 'Total energy should stay flat for the ideal, undamped system.';
+}
+
+// ---------- main loop ----------
+let last = performance.now();
+function frame(now){
+  let real = Math.min((now - last)/1000, 0.05); last = now;
+  if(S.running && !blown){
+    acc += real*S.speed;
+    let n = 0; const maxSteps = 8000;
+    const step = S.method === 'rk4' ? rk4 : euler;
+    while(acc >= S.dt && n < maxSteps){
+      A = step(A, S.dt);
+      if(S.chaos) B = step(B, S.dt);
+      t += S.dt; acc -= S.dt; n++;
+    }
+    if(n >= maxSteps) acc = 0;
+    const ok = A.every(Number.isFinite) && (!S.chaos || B.every(Number.isFinite)) && Math.abs(A[2]) < 1e6 && Math.abs(A[3]) < 1e6;
+    if(!ok){ blown = true; S.running = false; $('blown').classList.add('on'); $('btnPlay').textContent = 'Play'; }
+    else if(n > 0){ record(); updateReadout(); }
+  }
+  if(!blown){ drawStage(); drawEnergy(); drawPhase(); drawDiv(); }
+  requestAnimationFrame(frame);
+}
+
+// ---------- controls ----------
+const sliders = {
+  t1:{get:()=>IC.t1, set:v=>{IC.t1=v; reset();}, fmt:v=>v.toFixed(2)+'°'},
+  t2:{get:()=>IC.t2, set:v=>{IC.t2=v; reset();}, fmt:v=>v.toFixed(2)+'°'},
+  m1:{get:()=>P.m1, set:v=>{P.m1=v; rebaseEnergy();}, fmt:v=>v.toFixed(1)+' kg'},
+  m2:{get:()=>P.m2, set:v=>{P.m2=v; rebaseEnergy();}, fmt:v=>v.toFixed(1)+' kg'},
+  L1:{get:()=>P.L1, set:v=>{P.L1=v; trailA=[]; trailB=[]; rebaseEnergy();}, fmt:v=>v.toFixed(2)+' m'},
+  L2:{get:()=>P.L2, set:v=>{P.L2=v; trailA=[]; trailB=[]; rebaseEnergy();}, fmt:v=>v.toFixed(2)+' m'},
+  g:{get:()=>P.g, set:v=>{P.g=v; rebaseEnergy();}, fmt:v=>v.toFixed(2)+' m/s²'},
+  b:{get:()=>P.b, set:v=>{P.b=v; rebaseEnergy(); updateReadout();}, fmt:v=>v===0?'off':v.toFixed(2)+' s⁻¹'},
+};
+function syncSlider(id){ const s = sliders[id], v = s.get(); $(id).value = v; $(id+'o').textContent = s.fmt(v); }
+Object.keys(sliders).forEach(id => {
+  syncSlider(id);
+  $(id).addEventListener('input', e => { const v = parseFloat(e.target.value); sliders[id].set(v); $(id+'o').textContent = sliders[id].fmt(v); });
+});
+
+function setRunning(r){ S.running = r; $('btnPlay').textContent = r ? 'Pause' : 'Play'; }
+$('btnPlay').onclick = () => { if(blown) return; setRunning(!S.running); };
+$('btnReset').onclick = () => reset();
+$('method').onchange = e => { S.method = e.target.value; reset(); };
+$('dt').onchange = e => { S.dt = parseFloat(e.target.value); reset(); };
+$('phaseOf').onchange = e => { S.phaseOf = +e.target.value; phaseA=[]; phaseB=[]; };
+function setChaos(on){ S.chaos = on; $('chaos').checked = on; $('legendAB').classList.toggle('on', on); reset(); }
+$('chaos').onchange = e => setChaos(e.target.checked);
+$('delta').onchange = e => { const v = parseFloat(e.target.value); if(v > 0){ S.delta = v; reset(); } else e.target.value = S.delta; };
+
+const presets = {
+  gentle:()=>{ IC.t1=30; IC.t2=30; },
+  wild:()=>{ IC.t1=120; IC.t2=120; },
+  chaos:()=>{ IC.t1=120; IC.t2=120; S.delta=0.01; $('delta').value=0.01; S.chaos=true; },
+  upright:()=>{ IC.t1=180; IC.t2=179.9; },
+  mode1:()=>{ Object.assign(P,{m1:1,m2:1,L1:1,L2:1,b:0}); IC.t1=8; IC.t2=+(8*Math.SQRT2).toFixed(2); },
+  mode2:()=>{ Object.assign(P,{m1:1,m2:1,L1:1,L2:1,b:0}); IC.t1=8; IC.t2=-(8*Math.SQRT2).toFixed(2); },
+};
+document.querySelectorAll('[data-p]').forEach(btn => btn.onclick = () => {
+  presets[btn.dataset.p]();
+  Object.keys(sliders).forEach(syncSlider);
+  setChaos(S.chaos);
+  setRunning(true);
+});
+
+const stage = $('stage');
+let drag = null, wasRunning = false;
+function toWorld(ev){
+  const r = stage.getBoundingClientRect();
+  return [(ev.clientX - r.left - VIEW.ox)/VIEW.sc, (VIEW.oy - (ev.clientY - r.top))/VIEW.sc];
+}
+stage.addEventListener('pointerdown', ev => {
+  const r = stage.getBoundingClientRect(), px = ev.clientX - r.left, py = ev.clientY - r.top;
+  const p = positions(A);
+  const d1 = Math.hypot(px - (VIEW.ox + p[0]*VIEW.sc), py - (VIEW.oy - p[1]*VIEW.sc));
+  const d2 = Math.hypot(px - (VIEW.ox + p[2]*VIEW.sc), py - (VIEW.oy - p[3]*VIEW.sc));
+  const hit = 16;
+  if(d2 < VIEW.r2 + hit && d2 <= d1) drag = 2; else if(d1 < VIEW.r1 + hit) drag = 1; else return;
+  wasRunning = S.running; setRunning(false);
+  stage.setPointerCapture(ev.pointerId); stage.classList.add('dragging');
+});
+stage.addEventListener('pointermove', ev => {
+  if(!drag) return;
+  const [x, y] = toWorld(ev);
+  if(drag === 1){ IC.t1 = Math.atan2(x, -y)/RAD; }
+  else { const p = positions(A); IC.t2 = Math.atan2(x - p[0], -(y - p[1]))/RAD; }
+  IC.t1 = +IC.t1.toFixed(2); IC.t2 = +IC.t2.toFixed(2);
+  syncSlider('t1'); syncSlider('t2'); reset();
+});
+const endDrag = () => { if(!drag) return; drag = null; stage.classList.remove('dragging'); if(wasRunning) setRunning(true); };
+stage.addEventListener('pointerup', endDrag);
+stage.addEventListener('pointercancel', endDrag);
+
+
+reset();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
